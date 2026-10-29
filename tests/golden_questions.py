@@ -1,0 +1,73 @@
+"""Golden question set: question + hand-written reference SQL, by difficulty.
+
+Questions state any definition that is ambiguous (e.g. what a wicket or a legal
+ball is) so there is one correct answer.
+"""
+
+GOLDEN = [
+    # ---------------- simple ----------------
+    {"id": 1, "difficulty": "simple",
+     "question": "How many matches were played in total?",
+     "sql": "SELECT COUNT(*) FROM matches"},
+    {"id": 2, "difficulty": "simple",
+     "question": "How many matches were played in the 2016 season?",
+     "sql": "SELECT COUNT(*) FROM matches WHERE season = 2016"},
+    {"id": 3, "difficulty": "simple",
+     "question": "Which team has won the most matches overall?",
+     "sql": "SELECT winner FROM matches WHERE winner IS NOT NULL GROUP BY winner ORDER BY COUNT(*) DESC LIMIT 1"},
+    {"id": 4, "difficulty": "simple",
+     "question": "How many different cities have hosted matches?",
+     "sql": "SELECT COUNT(DISTINCT city) FROM matches"},
+    {"id": 5, "difficulty": "simple",
+     "question": "Which player has won the most player of the match awards?",
+     "sql": "SELECT player_of_match FROM matches WHERE player_of_match IS NOT NULL GROUP BY player_of_match ORDER BY COUNT(*) DESC LIMIT 1"},
+    {"id": 6, "difficulty": "simple",
+     "question": "How many matches ended in a tie?",
+     "sql": "SELECT COUNT(*) FROM matches WHERE result = 'tie'"},
+    {"id": 7, "difficulty": "simple",
+     "question": "How many matches did Mumbai Indians win in 2015?",
+     "sql": "SELECT COUNT(*) FROM matches WHERE season = 2015 AND winner = 'Mumbai Indians'"},
+
+    # ---------------- moderate ----------------
+    {"id": 8, "difficulty": "moderate",
+     "question": "Who are the top 5 run scorers of all time? Count only runs off the bat and exclude super overs.",
+     "sql": "SELECT batsman, SUM(batsman_runs) AS runs FROM deliveries WHERE is_super_over = 0 GROUP BY batsman ORDER BY runs DESC LIMIT 5"},
+    {"id": 9, "difficulty": "moderate",
+     "question": "Which bowler has taken the most wickets? Exclude super overs and do not count run outs, retired hurt or obstructing the field.",
+     "sql": "SELECT bowler FROM deliveries WHERE is_super_over = 0 AND player_dismissed IS NOT NULL AND dismissal_kind NOT IN ('run out', 'retired hurt', 'obstructing the field') GROUP BY bowler ORDER BY COUNT(*) DESC LIMIT 1"},
+    {"id": 10, "difficulty": "moderate",
+     "question": "How many sixes has V Kohli hit? Exclude super overs.",
+     "sql": "SELECT COUNT(*) FROM deliveries WHERE batsman = 'V Kohli' AND batsman_runs = 6 AND is_super_over = 0"},
+    {"id": 11, "difficulty": "moderate",
+     "question": "In how many matches did the team that won the toss also win the match?",
+     "sql": "SELECT COUNT(*) FROM matches WHERE toss_winner = winner"},
+    {"id": 12, "difficulty": "moderate",
+     "question": "What were the total runs scored in each season, excluding super overs? Show season and total runs.",
+     "sql": "SELECT m.season, SUM(d.total_runs) FROM deliveries d JOIN matches m ON d.match_id = m.id WHERE d.is_super_over = 0 GROUP BY m.season ORDER BY m.season"},
+    {"id": 13, "difficulty": "moderate",
+     "question": "Which venue has hosted the most matches?",
+     "sql": "SELECT venue FROM matches GROUP BY venue ORDER BY COUNT(*) DESC LIMIT 1"},
+    {"id": 14, "difficulty": "moderate",
+     "question": "How many times have Mumbai Indians and Chennai Super Kings played each other?",
+     "sql": "SELECT COUNT(*) FROM matches WHERE (team1 = 'Mumbai Indians' AND team2 = 'Chennai Super Kings') OR (team1 = 'Chennai Super Kings' AND team2 = 'Mumbai Indians')"},
+
+    # ---------------- hard ----------------
+    {"id": 15, "difficulty": "hard",
+     "question": "What is the highest team total in a single regular innings (exclude super overs)? Show the batting team and the total.",
+     "sql": "SELECT batting_team, SUM(total_runs) AS total FROM deliveries WHERE is_super_over = 0 GROUP BY match_id, inning, batting_team ORDER BY total DESC LIMIT 1"},
+    {"id": 16, "difficulty": "hard",
+     "question": "Which batsman has the highest strike rate (runs per 100 balls faced) among batsmen who faced at least 1000 balls? Exclude super overs, count only runs off the bat, and do not count wides as balls faced. Show the batsman and strike rate.",
+     "sql": "SELECT batsman, ROUND(100.0 * SUM(batsman_runs) / COUNT(*), 2) AS sr FROM deliveries WHERE is_super_over = 0 AND wide_runs = 0 GROUP BY batsman HAVING COUNT(*) >= 1000 ORDER BY sr DESC LIMIT 1"},
+    {"id": 17, "difficulty": "hard",
+     "question": "Which batsman has scored the most centuries? A century is 100 or more runs off the bat by one batsman in one match, excluding super overs. Show the batsman and the number of centuries.",
+     "sql": "SELECT batsman, COUNT(*) AS centuries FROM (SELECT match_id, batsman, SUM(batsman_runs) AS r FROM deliveries WHERE is_super_over = 0 GROUP BY match_id, batsman HAVING r >= 100) GROUP BY batsman ORDER BY centuries DESC LIMIT 1"},
+    {"id": 18, "difficulty": "hard",
+     "question": "Which bowler has the best (lowest) economy rate among bowlers who bowled at least 1000 legal balls? Exclude super overs. A legal ball has no wide and no no-ball. Runs conceded are total_runs minus bye_runs and legbye_runs. Economy is runs conceded per 6 legal balls, rounded to 2 decimals. Show the bowler and economy.",
+     "sql": "SELECT bowler, ROUND(6.0 * SUM(total_runs - bye_runs - legbye_runs) / SUM(CASE WHEN wide_runs = 0 AND noball_runs = 0 THEN 1 ELSE 0 END), 2) AS econ FROM deliveries WHERE is_super_over = 0 GROUP BY bowler HAVING SUM(CASE WHEN wide_runs = 0 AND noball_runs = 0 THEN 1 ELSE 0 END) >= 1000 ORDER BY econ ASC LIMIT 1"},
+    {"id": 19, "difficulty": "hard",
+     "question": "In matches where the team batting first scored more than 200 runs in the first innings, how many did the team batting first go on to win?",
+     "sql": "SELECT COUNT(*) FROM (SELECT match_id, batting_team, SUM(total_runs) AS t FROM deliveries WHERE inning = 1 AND is_super_over = 0 GROUP BY match_id, batting_team HAVING t > 200) i JOIN matches m ON m.id = i.match_id WHERE m.winner = i.batting_team"},
+    {"id": 20, "difficulty": "hard",
+     "question": "Which bowler has dismissed V Kohli the most times? Exclude super overs and do not count run outs, retired hurt or obstructing the field. Show the bowler and the count.",
+     "sql": "SELECT bowler, COUNT(*) AS n FROM deliveries WHERE is_super_over = 0 AND player_dismissed = 'V Kohli' AND dismissal_kind NOT IN ('run out', 'retired hurt', 'obstructing the field') GROUP BY bowler ORDER BY n DESC LIMIT 1"},
+]

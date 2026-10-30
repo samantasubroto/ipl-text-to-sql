@@ -15,11 +15,11 @@ python scripts/load_db.py        # builds data/ipl.db from the CSVs in data/
 Copy `.env.example` to `.env` and add your keys (`.env` is git-ignored):
 
 ```
-LLM_PROVIDER=openai              # or gemini
-OPENAI_API_KEY=...
-OPENAI_MODEL=gpt-6-luna          # any chat model your key can use
+LLM_PROVIDER=gemini              # default; or openai (paid)
 GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-3.5-flash-lite
+OPENAI_API_KEY=...               # only needed if LLM_PROVIDER=openai
+OPENAI_MODEL=gpt-6-luna
 ```
 
 ## Run

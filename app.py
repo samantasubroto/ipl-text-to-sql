@@ -3,17 +3,55 @@
 Run from the project root:
     streamlit run app.py
 """
+import hmac
+import os
 import sqlite3
 
 import streamlit as st
 
-from src.db import QueryTimeoutError, run_query
+from scripts.load_db import main as build_database
+from src.db import DB_PATH, QueryTimeoutError, run_query
 from src.guardrails import UnsafeSQLError
 from src.llm import generate_sql
+
+MAX_QUESTIONS_PER_SESSION = 15
 
 st.set_page_config(page_title="IPL Text-to-SQL", page_icon="🏏")
 st.title("🏏 IPL Text-to-SQL")
 st.caption("Ask a question about IPL matches (2008-2017) in plain English.")
+
+
+def get_secret(name: str) -> str | None:
+    """Read a setting from environment variables, then Streamlit secrets."""
+    value = os.environ.get(name)
+    if value:
+        return value
+    try:
+        return st.secrets.get(name)
+    except Exception:  # no secrets file configured (e.g. running locally)
+        return None
+
+
+# The database is git-ignored, so build it from the CSVs on first start.
+if not DB_PATH.exists():
+    with st.spinner("Setting up the database (first start only)..."):
+        build_database()
+
+# Optional password gate: only active when APP_PASSWORD is set.
+app_password = get_secret("APP_PASSWORD")
+if app_password and not st.session_state.get("authenticated"):
+    entered = st.text_input("Password", type="password")
+    if entered:
+        if hmac.compare_digest(entered, app_password):
+            st.session_state["authenticated"] = True
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+    st.stop()
+
+if st.session_state.get("question_count", 0) >= MAX_QUESTIONS_PER_SESSION:
+    st.info("You've reached the question limit for this session. Reload the page to start a new one.")
+    st.stop()
 
 EXAMPLES = [
     "Which team won the most matches in 2016?",
@@ -34,6 +72,7 @@ if submitted:
     if not question:
         st.warning("Please enter a question.")
         st.stop()
+    st.session_state["question_count"] = st.session_state.get("question_count", 0) + 1
 
     try:
         with st.spinner("Generating SQL..."):
